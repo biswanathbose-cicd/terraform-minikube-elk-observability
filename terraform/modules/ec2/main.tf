@@ -1,6 +1,6 @@
 resource "aws_security_group" "this" {
   name        = "${var.project_name}-sg"
-  description = "Allow SSH, HTTP, HTTPS"
+  description = "Allow SSH, HTTP, HTTPS, and NodePorts for Kibana/Streamlit/Elasticsearch"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -8,7 +8,7 @@ resource "aws_security_group" "this" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # tighten this to your IP in real use
+    cidr_blocks = ["0.0.0.0/0"] # tighten to your IP in real use
   }
 
   ingress {
@@ -27,6 +27,31 @@ resource "aws_security_group" "this" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # ---------------- NodePorts ----------------
+  ingress {
+    description = "Kibana NodePort"
+    from_port   = 30601
+    to_port     = 30601
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # ideally restrict to your IP
+  }
+
+  ingress {
+    description = "Streamlit NodePort"
+    from_port   = 30501
+    to_port     = 30501
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # ideally restrict to your IP
+  }
+
+  ingress {
+    description = "Elasticsearch NodePort (UI/API)"
+    from_port   = 30920
+    to_port     = 30920
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # strongly recommend restricting to your IP
+  }
+
   egress {
     description = "All outbound"
     from_port   = 0
@@ -39,6 +64,7 @@ resource "aws_security_group" "this" {
     Name = "${var.project_name}-sg"
   }
 }
+
 
 resource "aws_instance" "this" {
   ami                    = var.ami_id
@@ -63,6 +89,10 @@ resource "aws_instance" "this" {
 
   tags = {
     Name = "${var.project_name}-ec2"
+  }
+    provisioner "file" {
+    source      = "${path.root}/k8s"
+    destination = "/home/ubuntu/k8s"
   }
 
 
@@ -110,7 +140,41 @@ resource "aws_instance" "this" {
       # Verify
       "sudo -u ubuntu -i bash -lc 'minikube status'",
       "sudo -u ubuntu -i bash -lc 'kubectl get nodes'",
-      "sudo -u ubuntu -i bash -lc 'kubectl get pods -A'"
+      "sudo -u ubuntu -i bash -lc 'kubectl get pods -A'",
+
+            # ---------------- Deploy Logging Stack (ELK) ----------------
+      "sudo chown -R ubuntu:ubuntu /home/ubuntu/k8s",
+
+      # Namespace
+      "sudo -u ubuntu -i bash -lc 'kubectl apply -f /home/ubuntu/k8s/namespace.yaml'",
+
+      # Elasticsearch (wait is important)
+      "sudo -u ubuntu -i bash -lc 'kubectl apply -f /home/ubuntu/k8s/elasticsearch.yaml'",
+      "sudo -u ubuntu -i bash -lc 'kubectl -n logging rollout status statefulset/elasticsearch --timeout=600s || true'",
+
+      # Logstash
+      "sudo -u ubuntu -i bash -lc 'kubectl apply -f /home/ubuntu/k8s/logstash.yaml'",
+      "sudo -u ubuntu -i bash -lc 'kubectl -n logging rollout status deploy/logstash --timeout=600s || true'",
+
+      # Kibana
+      "sudo -u ubuntu -i bash -lc 'kubectl apply -f /home/ubuntu/k8s/kibana.yaml'",
+      "sudo -u ubuntu -i bash -lc 'kubectl -n logging rollout status deploy/kibana --timeout=600s || true'",
+
+      # Filebeat (DaemonSet)
+      "sudo -u ubuntu -i bash -lc 'kubectl apply -f /home/ubuntu/k8s/filebeat.yaml'",
+
+      # ---------------- Verification ----------------
+      "sudo -u ubuntu -i bash -lc 'kubectl -n logging get pods'",
+      "sudo -u ubuntu -i bash -lc 'kubectl -n logging get svc'",
+
+      # ---------------- Print Access URLs ----------------
+      "PUB_IP=$(curl -s http://checkip.amazonaws.com) && echo \"KIBANA_URL=http://$PUB_IP:30601\"",
+      "PUB_IP=$(curl -s http://checkip.amazonaws.com) && echo \"ELASTICSEARCH_URL=http://$PUB_IP:30920\"",
+      "PUB_IP=$(curl -s http://checkip.amazonaws.com) && echo \"STREAMLIT_URL=http://$PUB_IP:30501\""
+
+
+
+      
     ]
   }
 
