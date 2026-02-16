@@ -13,6 +13,37 @@ data:
 
     filter {
       # keep empty for now (you can add grok later)
+          # Parse JSON logs from Streamlit app
+      if [message] =~ /^\{.*\}$/ {
+        json {
+          source => "message"
+          target => "qa_data"
+          skip_on_invalid_json => true
+        }
+        
+        # If it's a QA interaction
+        if [qa_data][event_type] == "qa_interaction" {
+          mutate {
+            add_tag => ["qa_log"]
+          }
+          
+          # Parse timestamp
+          if [qa_data][timestamp] {
+            date {
+              match => ["[qa_data][timestamp]", "ISO8601"]
+              target => "@timestamp"
+            }
+          }
+          
+          # Add feedback tag
+          if [qa_data][feedback] {
+            mutate {
+              add_tag => ["user_feedback"]
+            }
+          }
+        }
+      }
+
     }
 
     output {

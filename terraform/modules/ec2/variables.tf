@@ -19,3 +19,11 @@ variable "private_key_pem" {
   type      = string
   sensitive = true
 }
+variable "groq_api_key" {
+  type      = string
+  sensitive = true
+}
+variable "private_key_path" {
+  description = "Path to the private key file for SSH access"
+  type        = string
+}

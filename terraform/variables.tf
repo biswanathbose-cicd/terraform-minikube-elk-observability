@@ -26,7 +26,7 @@ variable "az" {
 
 variable "instance_type" {
   type    = string
-  default = "t3.small"
+  default = "m7i-flex.large"
 }
 
 
@@ -36,3 +36,15 @@ variable "ami_id" {
   description = "AMI ID to use for EC2"
   default     = "ami-0b6c6ebed2801a5cb"
 }
+
+variable "groq_api_key" {
+  description = "Groq API Key"
+  type        = string
+  sensitive   = true
+}
+variable "private_key_path" {
+  description = "Path to the private key file for SSH access"
+  type        = string
+  default     = "~/.ssh/id_rsa" # or your key path
+}
+

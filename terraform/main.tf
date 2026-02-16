@@ -23,6 +23,8 @@ module "ec2" {
 
   instance_profile_name = module.iam.instance_profile_name
   private_key_pem       = tls_private_key.generated.private_key_pem
+  private_key_path      = var.private_key_path # or direct path like "~/.ssh/id_rsa"
+  groq_api_key          = var.groq_api_key
 
 }
 

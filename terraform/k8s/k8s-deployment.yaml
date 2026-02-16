@@ -1,38 +1,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: streamlit-app
+  name: llm-streamlit-app
   labels:
-    app: streamlit
+    app: llm-streamlit-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: streamlit
+      app: llm-streamlit-app
   template:
     metadata:
       labels:
-        app: streamlit
+        app: llm-streamlit-app
     spec:
       containers:
-        - name: streamlit-container
-          image: streamlit-app:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8501
-          envFrom:
-            - secretRef:
-                name: llmops-secrets
+      - name: llm-streamlit-app
+        image: llm-streamlit-app:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8501
+        env:
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rag-secrets
+                  key: GROQ_API_KEY
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: streamlit-service
+  name: llm-streamlit-app-svc
 spec:
-  type: LoadBalancer
   selector:
-    app: streamlit
+    app: llm-streamlit-app
+  type: LoadBalancer
   ports:
-    - protocol: TCP
-      port: 80
+    - port: 8501
       targetPort: 8501
+      nodePort: 30053
+

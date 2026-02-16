@@ -28,9 +28,28 @@ metadata:
   name: kibana
   namespace: logging
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: kibana
   ports:
-    - port: 5601
-      nodePort: 30601
+    - name: http
+      port: 5601
+      targetPort: 5601
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kibana-ingress
+  namespace: logging
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kibana
+                port:
+                  number: 5601
