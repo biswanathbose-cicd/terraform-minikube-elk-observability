@@ -146,7 +146,7 @@ resource "aws_instance" "this" {
 
       # Create Kubernetes secret
       "echo '=== Creating Kubernetes secret ==='",
-      "sudo -u ubuntu -H bash -lc 'kubectl create secret generic rag-secrets --from-literal=GROQ_API_KEY='REDACTED_GROQ_KEY' --dry-run=client -o yaml | kubectl apply -f -'",
+      "sudo -u ubuntu -H bash -lc 'kubectl create secret generic rag-secrets --from-literal=GROQ_API_KEY='var' --dry-run=client -o yaml | kubectl apply -f -'",
 
       # Apply Kubernetes deployment
       "echo '=== Applying Kubernetes deployment ==='",
